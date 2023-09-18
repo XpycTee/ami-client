@@ -271,7 +271,7 @@ await client.register_callback('EventName', callback)
 
 ## Лицензия
 
-Распространяется в рамках Apache License 2.0. Смотрите [ЛИЦЕНЗИЯ](https://github.com/XpycTee/ami_client/blob/main/LICENSE.md) для получения дополнительной информации.
+Распространяется в рамках Apache License 2.0. Смотрите [ЛИЦЕНЗИЯ](./LICENSE) для получения дополнительной информации.
 
 ## Авторы
 
