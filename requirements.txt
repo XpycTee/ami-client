@@ -1,0 +1,2 @@
+jmespath~=1.0.1
+aiohttp~=3.8.5
