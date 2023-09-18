@@ -7,7 +7,9 @@ Asynchronous client for working with Asterisk Manager Interface
 
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/ami-client) ![PyPI - Version](https://img.shields.io/pypi/v/ami-client) ![pyversions](https://img.shields.io/pypi/pyversions/ami-client) ![Downloads](https://img.shields.io/github/downloads/XpycTee/ami-client/total) ![Contributors](https://img.shields.io/github/contributors/XpycTee/ami-client?color=dark-green) ![Issues](https://img.shields.io/github/issues/XpycTee/ami-client) ![License](https://img.shields.io/github/license/XpycTee/ami-client)
 
-[RU Readme](./README.md)
+<br>
+
+[![Russian](https://img.shields.io/badge/Language-Russian-readme)](./README.md)
 
 ## Table of Contents
 

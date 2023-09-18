@@ -7,7 +7,9 @@
 
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/ami-client) ![PyPI - Version](https://img.shields.io/pypi/v/ami-client) ![pyversions](https://img.shields.io/pypi/pyversions/ami-client) ![Downloads](https://img.shields.io/github/downloads/XpycTee/ami_client/total) ![Contributors](https://img.shields.io/github/contributors/XpycTee/ami_client?color=dark-green) ![Issues](https://img.shields.io/github/issues/XpycTee/ami_client) ![License](https://img.shields.io/github/license/XpycTee/ami_client) 
 
-[EN Readme](./EN-README.md)
+<br>
+
+[![English](https://img.shields.io/badge/Language-English-readme)](./README.en.md)
 
 ## Содержание
 
