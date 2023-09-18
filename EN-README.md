@@ -270,7 +270,7 @@ For more information about events, you can refer to the Asterisk documentation: 
 
 ## License
 
-Distributed under the Apache License 2.0. See [LICENSE](https://github.com/XpycTee/ami_client/blob/main/LICENSE.md) for more information.
+Distributed under the Apache License 2.0. See [LICENSE](./LICENSE) for more information.
 
 ## Authors
 
