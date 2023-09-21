@@ -5,7 +5,7 @@ import re
 
 import jmespath
 
-from ami_client import AMIClientBase
+from ami import AMIClientBase
 
 
 @dataclasses.dataclass
