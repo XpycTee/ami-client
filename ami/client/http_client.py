@@ -2,6 +2,7 @@ import asyncio
 import dataclasses
 import logging
 import urllib.parse
+from typing import List
 
 import aiohttp
 
@@ -72,7 +73,7 @@ class HTTPClient(AMIClientBase):
 
 
     @staticmethod
-    def _headers_to_dict(headers: str) -> list[dict]:
+    def _headers_to_dict(headers: str) -> List[dict]:
         """
         This static method converts a strings to formatted as key-value pairs into a dictionary.
 
@@ -90,7 +91,7 @@ class HTTPClient(AMIClientBase):
             header_list.append(header_dict)
         return header_list
 
-    async def ami_request(self, query: dict) -> list[dict]:
+    async def ami_request(self, query: dict) -> List[dict]:
         headers = {"Content-Type": "text/plain"}
         url = f"http://{self.host}:{self.port}/rawman?{urllib.parse.urlencode(query).lower()}"
         async with aiohttp.ClientSession(cookie_jar=self._cookies) as session:

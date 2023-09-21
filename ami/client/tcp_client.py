@@ -2,6 +2,7 @@ import asyncio
 import dataclasses
 import logging
 import re
+from typing import List, Union
 
 import jmespath
 
@@ -19,8 +20,8 @@ class TCPClient(AMIClientBase):
     def __init__(self, host: str, port: int = 5038):
         super().__init__(host, port)
         self.logger = logging.getLogger('TCP Client')
-        self._reader: asyncio.StreamReader | None = None
-        self._writer: asyncio.StreamWriter | None = None
+        self._reader: Union[asyncio.StreamReader, None] = None
+        self._writer: Union[asyncio.StreamWriter, None] = None
         self._queues = TCPQueues()
         self._resp_waiting = []
 
@@ -152,7 +153,7 @@ class TCPClient(AMIClientBase):
                 logging.error('Проблемы с определением типа сообщения\n%s' % message)
             await asyncio.sleep(0.0001)
 
-    async def ami_request(self, query: dict) -> list[dict]:
+    async def ami_request(self, query: dict) -> List[dict]:
         request = self._dict_to_headers(query)
         self._writer.write(request.encode('utf8'))
         await self._writer.drain()

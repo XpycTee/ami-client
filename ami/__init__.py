@@ -42,7 +42,7 @@ __author__ = 'XpycTee'
 import logging
 
 from abc import abstractmethod
-from typing import Optional, Awaitable
+from typing import Optional, Awaitable, Union, List
 
 
 class AMIClientBase:
@@ -75,7 +75,7 @@ class AMIClientBase:
         pass
 
     @abstractmethod
-    async def ami_request(self, query: dict) -> list[dict]:
+    async def ami_request(self, query: dict) -> List[dict]:
         """
         Sends an AMI request to the server
 
@@ -106,7 +106,7 @@ class AMIClientBase:
         else:
             self._event_callbacks[event_name] = list()
 
-    async def login(self, username: str, password: str) -> list[dict]:
+    async def login(self, username: str, password: str) -> List[dict]:
         """
         Login to the AMI server using the specified username and password
 
@@ -121,7 +121,7 @@ class AMIClientBase:
         }
         return await self.ami_request(data)
 
-    async def logoff(self) -> list[dict]:
+    async def logoff(self) -> List[dict]:
         """
         Logoff from the AMI server
 
@@ -129,7 +129,7 @@ class AMIClientBase:
         """
         return await self.ami_request({"Action": "LogOff"})
 
-    async def channels(self) -> list[dict]:
+    async def channels(self) -> List[dict]:
         """
         Shows the channels on the AMI server
 
@@ -150,10 +150,10 @@ class AMIClientBase:
             app_data: Optional[str] = None,
             account: Optional[str] = None,
             early_media: Optional[bool] = None,
-            codecs: Optional[list[str]] = None,
+            codecs: Optional[List[str]] = None,
             other_channel_id: Optional[str] = None,
-            variables: Optional[list[str]] = None
-    ) -> list[dict]:
+            variables: Optional[List[str]] = None
+    ) -> List[dict]:
         """
         Sends an originate AMI request
 
@@ -216,7 +216,7 @@ class AMIClientBase:
             extra_extension: int = None,
             extra_context: str = None,
             extra_priority: int = None,
-    ) -> list[dict]:
+    ) -> List[dict]:
         """
         Sends a redirect AMI request
 
@@ -249,7 +249,7 @@ class AMIClientBase:
 
         return await self.ami_request(data)
 
-    async def blind_transfer(self, channel: str, extension: str | int, context: str = "from-internal") -> list[dict]:
+    async def blind_transfer(self, channel: str, extension: Union[str, int], context: str = "from-internal") -> List[dict]:
         """
         Sends a blind transfer AMI request
 
