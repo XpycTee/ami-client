@@ -75,10 +75,7 @@ class TCPClient(AMIClientBase):
         """
         lines = []
         while self.running:
-            # Читаем строку из tcp потока
-            line = await self._reader.readline()
-
-            # Если строка пустая, то записываем список в очередь и очищаем список
+            line = await asyncio.wait_for(self._reader.readline(), timeout=1)
             if not line.strip():
                 if lines:
                     await self._queues.messages.put(lines)
@@ -88,12 +85,8 @@ class TCPClient(AMIClientBase):
                 lines.append(line.strip().decode())
 
     async def event_dispatch(self):
-        # цикл отправки событий
         while self.running:
-            # получаем/ожидаем событие
             event = await self._queues.events.get()
-
-            # если получили None в качестве события, то мы завершаем работу
             if not event:
                 break
             # обрабатываем наши события
@@ -117,17 +110,14 @@ class TCPClient(AMIClientBase):
         event_list = []
 
         while self.running:
-            # получаем/ожидаем сообщения
-            data = await self._queues.messages.get()
-            # если мы получили None в качестве сообщения, мы закончили
+            data = await asyncio.wait_for(self._queues.messages.get(), timeout=1)
+            self.logger.debug(f"New message: {data}")
             if not data:
-                # уведомляем остальные очереди
                 await self._queues.events.put(None)
-                for waiter in self._resp_waiting:
+                for _ in self._resp_waiting:
                     await self._queues.responses.put(None)
                 break
 
-            # разбираем данные
             message = self._message_to_dict(data)
 
             if jmespath.search("Response && (EventList == 'start')", message):
@@ -139,28 +129,27 @@ class TCPClient(AMIClientBase):
                         break
                     event_list.append(list_message)
 
-            # проверяем, является ли это событийным сообщением
             if jmespath.search('Event', message):
                 await self._queues.events.put(message)
-            # проверяем, является ли это ответом
             elif jmespath.search('Response', message):
                 response_list = [message]
                 if event_list:
-                    response_list += event_list
+                    response_list.extend(event_list)
                     event_list = []
                 await self._queues.responses.put(response_list)
             else:
-                logging.error('Проблемы с определением типа сообщения\n%s' % message)
-            await asyncio.sleep(0.0001)
+                logging.error(f'Проблемы с определением типа сообщения "{message}"')
 
     async def ami_request(self, query: dict) -> List[dict]:
         request = self._dict_to_headers(query)
         self._writer.write(request.encode('utf8'))
         await self._writer.drain()
 
+        self.logger.debug(f"Start wait for {query}")
         self._resp_waiting.insert(0, 1)
         response = await self._queues.responses.get()
         self._resp_waiting.pop(0)
+        self.logger.debug(f"Stop wait for {query}")
 
         self.logger.debug(response)
         return response
