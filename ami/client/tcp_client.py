@@ -25,7 +25,7 @@ class TCPClient(AMIClientBase):
         self._queues = TCPQueues()
         self._resp_waiting = []
 
-    async def connect(self, username, password):
+    async def connect(self, username, password) -> List[dict]:
         self.running = True
         self._reader, self._writer = await asyncio.open_connection(host=self.host, port=self.port)
 
@@ -33,7 +33,7 @@ class TCPClient(AMIClientBase):
         loop.create_task(self.message_loop())
         loop.create_task(self.event_dispatch())
 
-        await self.login(username, password)
+        return await self._login(username, password)
 
     @staticmethod
     def _dict_to_headers(data: dict) -> str:

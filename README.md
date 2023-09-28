@@ -93,9 +93,19 @@ client = TCPClient('localhost')
 Установите соединение с сервером Asterisk, указав имя пользователя и пароль:
 
 ```python
-await client.connect(username='hello', password='world')
+connect_resp = await client.connect(username='hello', password='world')
 ```
 
+
+Обратите внимание, что результат запроса будет представлен в виде словаря, например:
+```json
+[
+    {
+        "Response": "Success", 
+        "Message": "Authentication accepted"
+    }
+]
+```
 
 ### Originate
 Отправьте запрос на сервер Asterisk для инициирования звонка с номера `FROM` на номер `DESTINATION`:
@@ -104,7 +114,8 @@ await client.connect(username='hello', password='world')
 call_resp = await client.originate(originator=FROM, extension=DESTINATION)
 ```
 
-Обратите внимание, что результат запроса будет представлен в виде словаря, например:
+
+Результатом будет словарь, указывающий на успешное постановление звонка в очередь:
 ```json
 [
     {

@@ -64,13 +64,13 @@ class AMIClientBase:
         self.port = port
 
     @abstractmethod
-    async def connect(self, username: str, password: str) -> None:
+    async def connect(self, username: str, password: str) -> List[dict]:
         """
         Establishes a connection to a server, using the provided username and password for authentication.
 
         :param username: The username to use for authentication.
         :param password: The password to use for authentication.
-        :return: None
+        :return: The response from the server
         """
         pass
 
@@ -106,7 +106,7 @@ class AMIClientBase:
         else:
             self._event_callbacks[event_name] = list()
 
-    async def login(self, username: str, password: str) -> List[dict]:
+    async def _login(self, username: str, password: str) -> List[dict]:
         """
         Login to the AMI server using the specified username and password
 

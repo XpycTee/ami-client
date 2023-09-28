@@ -94,7 +94,18 @@ client = TCPClient('localhost')
 Establish a connection to the Asterisk server by specifying the username and password:
 
 ```python
-await client.connect(username='hello', password='world')
+call_resp = await client.originate(originator=FROM, extension=DESTINATION)
+```
+
+
+The result will be a dictionary indicating the successful resolution of the call to the queue:
+```json
+[
+    {
+        "Response": "Success",
+        "Message": "Originate successfully queued"
+    }
+]
 ```
 
 

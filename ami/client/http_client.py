@@ -21,13 +21,13 @@ class HTTPClient(AMIClientBase):
         self._queues = HTTPQueues()
         self._cookies = aiohttp.CookieJar()
 
-    async def connect(self, username, password):
+    async def connect(self, username, password) -> List[dict]:
         self.running = True
-
-        await self.login(username, password)
 
         loop = asyncio.get_event_loop()
         loop.create_task(self.event_dispatch())
+
+        return await self._login(username, password)
 
     async def events(self, timeout=-1):
         """
