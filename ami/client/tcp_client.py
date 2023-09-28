@@ -1,5 +1,4 @@
 import asyncio
-import dataclasses
 import logging
 import re
 from typing import List, Union
@@ -9,24 +8,20 @@ import jmespath
 from ami import AMIClientBase
 
 
-@dataclasses.dataclass
-class TCPQueues:
-    messages: asyncio.Queue = asyncio.Queue()
-    events: asyncio.Queue = asyncio.Queue()
-    responses: asyncio.Queue = asyncio.Queue()
-
-
 class TCPClient(AMIClientBase):
     def __init__(self, host: str, port: int = 5038):
         super().__init__(host, port)
         self.logger = logging.getLogger('TCP Client')
         self._reader: Union[asyncio.StreamReader, None] = None
         self._writer: Union[asyncio.StreamWriter, None] = None
-        self._queues = TCPQueues()
+        self._queues = {}
         self._resp_waiting = []
 
     async def connect(self, username, password) -> List[dict]:
         self.running = True
+        self._queues['messages'] = asyncio.Queue()
+        self._queues['events'] = asyncio.Queue()
+        self._queues['responses'] = asyncio.Queue()
         self._reader, self._writer = await asyncio.open_connection(host=self.host, port=self.port)
 
         loop = asyncio.get_event_loop()
@@ -77,7 +72,7 @@ class TCPClient(AMIClientBase):
         while self.running:
             line = await asyncio.wait_for(self._reader.readline(), timeout=1)
             if not line.strip():
-                await self._queues.messages.put(lines)
+                await self._queues['messages'].put(lines)
                 lines = []
                 continue
             logging.debug(f"Line: {line}")
@@ -89,7 +84,7 @@ class TCPClient(AMIClientBase):
 
     async def event_dispatch(self):
         while self.running:
-            event = await self._queues.events.get()
+            event = await self._queues['events'].get()
             if not event:
                 break
             functions = self._get_functions(event['Event'])
@@ -109,19 +104,19 @@ class TCPClient(AMIClientBase):
         event_list = []
 
         while self.running:
-            data = await asyncio.wait_for(self._queues.messages.get(), timeout=1)
+            data = await asyncio.wait_for(self._queues['messages'].get(), timeout=1)
             self.logger.debug(f"New message: {data}")
             if not data:
-                await self._queues.events.put(None)
+                await self._queues['events'].put(None)
                 for _ in self._resp_waiting:
-                    await self._queues.responses.put(None)
+                    await self._queues['responses'].put(None)
                 break
 
             message = self._message_to_dict(data)
 
             if jmespath.search("Response && (EventList == 'start')", message):
                 while True:
-                    list_data = await self._queues.messages.get()
+                    list_data = await self._queues['messages'].get()
                     list_message = self._message_to_dict(list_data)
                     if jmespath.search("Event && (EventList == 'Complete')", list_message):
                         event_list.append(list_message)
@@ -129,13 +124,13 @@ class TCPClient(AMIClientBase):
                     event_list.append(list_message)
 
             if jmespath.search('Event', message):
-                await self._queues.events.put(message)
+                await self._queues['events'].put(message)
             elif jmespath.search('Response', message):
                 response_list = [message]
                 if event_list:
                     response_list.extend(event_list)
                     event_list = []
-                await self._queues.responses.put(response_list)
+                await self._queues['responses'].put(response_list)
             else:
                 logging.error(f'Проблемы с определением типа сообщения "{message}"')
 
@@ -146,7 +141,7 @@ class TCPClient(AMIClientBase):
 
         self.logger.debug(f"Start wait for {query}")
         self._resp_waiting.insert(0, 1)
-        response = await self._queues.responses.get()
+        response = await self._queues['responses'].get()
         self._resp_waiting.pop(0)
         self.logger.debug(f"Stop wait for {query}")
 

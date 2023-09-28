@@ -1,5 +1,4 @@
 import asyncio
-import dataclasses
 import logging
 import urllib.parse
 from typing import List
@@ -9,20 +8,17 @@ import aiohttp
 from ami import AMIClientBase
 
 
-@dataclasses.dataclass
-class HTTPQueues:
-    events: asyncio.Queue = asyncio.Queue()
-
-
 class HTTPClient(AMIClientBase):
     def __init__(self, host: str, port: int = 8088):
         super().__init__(host, port)
         self.logger = logging.getLogger('HTTP Client')
-        self._queues = HTTPQueues()
+        self._queues = {}
         self._cookies = aiohttp.CookieJar()
 
     async def connect(self, username, password) -> List[dict]:
         self.running = True
+
+        self._queues['events'] = asyncio.Queue()
 
         loop = asyncio.get_event_loop()
         loop.create_task(self.event_dispatch())
@@ -48,7 +44,7 @@ class HTTPClient(AMIClientBase):
 
             for event in events:
                 if 'Event' in event and event['Event'] != "WaitEventComplete":
-                    await self._queues.events.put(event)
+                    await self._queues['events'].put(event)
 
     def _get_functions(self, event_name):
         return self._event_callbacks.get(event_name, []) + self._event_callbacks.get('*', [])
@@ -58,7 +54,7 @@ class HTTPClient(AMIClientBase):
         loop.create_task(self._event_receiving())
 
         while self.running:
-            event = await self._queues.events.get()
+            event = await self._queues['events'].get()
             if not event:
                 break
             functions = self._get_functions(event['Event'])
