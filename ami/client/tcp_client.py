@@ -29,11 +29,11 @@ class TCPClient(AMIClientBase):
         self.running = True
         self._reader, self._writer = await asyncio.open_connection(host=self.host, port=self.port)
 
-        await self.login(username, password)
-
         loop = asyncio.get_event_loop()
         loop.create_task(self.message_loop())
         loop.create_task(self.event_dispatch())
+
+        await self.login(username, password)
 
     @staticmethod
     def _dict_to_headers(data: dict) -> str:
@@ -77,26 +77,25 @@ class TCPClient(AMIClientBase):
         while self.running:
             line = await asyncio.wait_for(self._reader.readline(), timeout=1)
             if not line.strip():
-                if lines:
-                    await self._queues.messages.put(lines)
-                    lines = []
-            else:
-                # Добавляем строку в список
-                lines.append(line.strip().decode())
+                await self._queues.messages.put(lines)
+                lines = []
+                continue
+            logging.debug(f"Line: {line}")
+            decoded_line = line.decode('windows-1251').strip()
+            lines.append(decoded_line)
+
+    def _get_functions(self, event_name):
+        return self._event_callbacks.get(event_name, []) + self._event_callbacks.get('*', [])
 
     async def event_dispatch(self):
         while self.running:
             event = await self._queues.events.get()
             if not event:
                 break
-            # обрабатываем наши события
-            # сначала создаем список функций для выполнения
-            callbacks = (self._event_callbacks.get(event["Event"], []) + self._event_callbacks.get('*', []))
+            functions = self._get_functions(event['Event'])
 
-            # теперь выполняем функции
             loop = asyncio.get_event_loop()
-            for callback in callbacks:
-                loop.create_task(callback(event, self))
+            [loop.create_task(fn(event, self)) for fn in functions]
 
     async def message_loop(self):
         """

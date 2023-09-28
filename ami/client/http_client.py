@@ -50,27 +50,21 @@ class HTTPClient(AMIClientBase):
                 if 'Event' in event and event['Event'] != "WaitEventComplete":
                     await self._queues.events.put(event)
 
+    def _get_functions(self, event_name):
+        return self._event_callbacks.get(event_name, []) + self._event_callbacks.get('*', [])
+
     async def event_dispatch(self):
         loop = asyncio.get_event_loop()
         loop.create_task(self._event_receiving())
 
-        # цикл отправки событий
         while self.running:
-            # получаем/ожидаем событие
             event = await self._queues.events.get()
-
-            # если получили None в качестве события, то мы завершаем работу
             if not event:
                 break
-            # обрабатываем наши события
-            # сначала создаем список функций для выполнения
-            callbacks = (self._event_callbacks.get(event["Event"], []) + self._event_callbacks.get('*', []))
+            functions = self._get_functions(event['Event'])
 
-            # теперь выполняем функции
             loop = asyncio.get_event_loop()
-            for callback in callbacks:
-                loop.create_task(callback(event, self))
-
+            [loop.create_task(fn(event, self)) for fn in functions]
 
     @staticmethod
     def _headers_to_dict(headers: str) -> List[dict]:
