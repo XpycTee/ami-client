@@ -127,7 +127,9 @@ class AMIClientBase:
 
         :return: The response from the server
         """
-        return await self.ami_request({"Action": "LogOff"})
+        response = await self.ami_request({"Action": "LogOff"})
+        self.running = False
+        return response
 
     async def channels(self) -> List[dict]:
         """
