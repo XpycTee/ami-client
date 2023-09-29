@@ -42,7 +42,7 @@ __author__ = 'XpycTee'
 import logging
 
 from abc import abstractmethod
-from typing import Optional, Awaitable, Union, List
+from typing import Optional, Union, List, Any, Coroutine, Callable, Dict
 
 
 class AMIClientBase:
@@ -58,7 +58,7 @@ class AMIClientBase:
         :param port: The server port
         """
         self.logger = logging.getLogger('AMI Client')
-        self._event_callbacks: dict[str, list[Awaitable]] = {}
+        self._event_callbacks: Dict[str, List[Callable[[dict, Any], Coroutine]]] = {}
         self.running = False
         self.host = host
         self.port = port
@@ -93,7 +93,7 @@ class AMIClientBase:
         """
         pass
 
-    async def register_callback(self, event_name: str, callback: Awaitable) -> None:
+    async def register_callback(self, event_name: str, callback: Callable[[dict, Any], Coroutine]) -> None:
         """
         Registers a callback function to be called when a specific event occurs.
 
@@ -104,7 +104,7 @@ class AMIClientBase:
         if event_name in self._event_callbacks:
             self._event_callbacks[event_name].append(callback)
         else:
-            self._event_callbacks[event_name] = list()
+            self._event_callbacks[event_name] = [callback]
 
     async def _login(self, username: str, password: str) -> List[dict]:
         """

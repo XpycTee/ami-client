@@ -1,7 +1,8 @@
 import asyncio
+import concurrent.futures
 import logging
 import re
-from typing import List, Union
+from typing import List, Union, Coroutine, Callable
 
 import jmespath
 
@@ -29,6 +30,9 @@ class TCPClient(AMIClientBase):
         loop.create_task(self.event_dispatch())
 
         return await self._login(username, password)
+
+    async def register_callback(self, event_name: str, callback: Callable[[dict, 'TCPClient'], Coroutine]) -> None:
+        await super().register_callback(event_name, callback)
 
     @staticmethod
     def _dict_to_headers(data: dict) -> str:
@@ -70,13 +74,22 @@ class TCPClient(AMIClientBase):
         """
         lines = []
         while self.running:
-            line = await asyncio.wait_for(self._reader.readline(), timeout=1)
+            try:
+                line = await asyncio.wait_for(self._reader.readline(), timeout=5)
+            except TimeoutError:
+                self.logger.error("Socket timeout, wait 1 sec")
+                await asyncio.sleep(1)
+                continue
+            except concurrent.futures._base.TimeoutError:
+                self.logger.error("Concurrent.futures timeout error")
+                continue
+
             if not line.strip():
                 await self._queues['messages'].put(lines)
                 lines = []
                 continue
             logging.debug(f"Line: {line}")
-            decoded_line = line.decode('windows-1251').strip()
+            decoded_line = line.decode('windows-1251', errors='replace').strip()
             lines.append(decoded_line)
 
     def _get_functions(self, event_name):
@@ -88,9 +101,10 @@ class TCPClient(AMIClientBase):
             if not event:
                 break
             functions = self._get_functions(event['Event'])
-
-            loop = asyncio.get_event_loop()
-            [loop.create_task(fn(event, self)) for fn in functions]
+            if len(functions) != 0:
+                loop = asyncio.get_event_loop()
+                [loop.create_task(fn(event, self)) for fn in functions]
+                self.logger.info(f"Execute callbacks for event '{event['Event']}'")
 
     async def message_loop(self):
         """
@@ -104,7 +118,7 @@ class TCPClient(AMIClientBase):
         event_list = []
 
         while self.running:
-            data = await asyncio.wait_for(self._queues['messages'].get(), timeout=1)
+            data = await self._queues['messages'].get()
             self.logger.debug(f"New message: {data}")
             if not data:
                 await self._queues['events'].put(None)
@@ -114,7 +128,9 @@ class TCPClient(AMIClientBase):
 
             message = self._message_to_dict(data)
 
-            if jmespath.search("Response && (EventList == 'start')", message):
+            if jmespath.search('Event', message):
+                await self._queues['events'].put(message)
+            elif jmespath.search("Response && (EventList == 'start')", message):
                 while True:
                     list_data = await self._queues['messages'].get()
                     list_message = self._message_to_dict(list_data)
@@ -122,9 +138,6 @@ class TCPClient(AMIClientBase):
                         event_list.append(list_message)
                         break
                     event_list.append(list_message)
-
-            if jmespath.search('Event', message):
-                await self._queues['events'].put(message)
             elif jmespath.search('Response', message):
                 response_list = [message]
                 if event_list:
@@ -145,5 +158,5 @@ class TCPClient(AMIClientBase):
         self._resp_waiting.pop(0)
         self.logger.debug(f"Stop wait for {query}")
 
-        self.logger.debug(response)
+        self.logger.info(f"Response {response} for {query}")
         return response

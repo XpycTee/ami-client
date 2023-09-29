@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import urllib.parse
-from typing import List
+from typing import List, Coroutine, Callable
 
 import aiohttp
 
@@ -17,13 +17,17 @@ class HTTPClient(AMIClientBase):
 
     async def connect(self, username, password) -> List[dict]:
         self.running = True
-
         self._queues['events'] = asyncio.Queue()
+
+        login_resp = await self._login(username, password)
 
         loop = asyncio.get_event_loop()
         loop.create_task(self.event_dispatch())
 
-        return await self._login(username, password)
+        return login_resp
+
+    async def register_callback(self, event_name: str, callback: Callable[[dict, 'HTTPClient'], Coroutine]) -> None:
+        await super().register_callback(event_name, callback)
 
     async def events(self, timeout=-1):
         """
@@ -58,9 +62,10 @@ class HTTPClient(AMIClientBase):
             if not event:
                 break
             functions = self._get_functions(event['Event'])
-
-            loop = asyncio.get_event_loop()
-            [loop.create_task(fn(event, self)) for fn in functions]
+            if len(functions) != 0:
+                loop = asyncio.get_event_loop()
+                [loop.create_task(fn(event, self)) for fn in functions]
+                self.logger.info(f"Execute callbacks for event '{event['Event']}'")
 
     @staticmethod
     def _headers_to_dict(headers: str) -> List[dict]:
@@ -86,8 +91,9 @@ class HTTPClient(AMIClientBase):
         url = f"http://{self.host}:{self.port}/rawman?{urllib.parse.urlencode(query).lower()}"
         async with aiohttp.ClientSession(cookie_jar=self._cookies) as session:
             async with session.get(url=url, headers=headers) as resp:
-                response_text = await resp.text()
+                response_text = await resp.text(encoding='windows-1251', errors='replace')
                 self.logger.debug(resp.status, resp.reason, response_text)
                 response = self._headers_to_dict(response_text)
-                self.logger.debug(response)
+                if query['Action'] != 'WaitEvent':
+                    self.logger.info(f"Response {response} for {query}")
                 return response
