@@ -11,10 +11,6 @@ Asynchronous client for working with Asterisk Manager Interface
 ![Downloads](https://img.shields.io/github/downloads/XpycTee/ami-client/total) ![Contributors](https://img.shields.io/github/contributors/XpycTee/ami-client?color=dark-green) ![Issues](https://img.shields.io/github/issues/XpycTee/ami-client) ![License](https://img.shields.io/github/license/XpycTee/ami-client)
 
 
-<br>
-
-[![Russian](https://img.shields.io/badge/Language-Russian-readme)](./README.md)
-
 ## Table of Contents
 
   * [Preparation](#preparation)
@@ -287,7 +283,7 @@ For more information about events, you can refer to the Asterisk documentation: 
 
 ## License
 
-Distributed under the Apache License 2.0. See [LICENSE](./LICENSE) for more information.
+Distributed under the Apache License 2.0. See [LICENSE](https://github.com/XpycTee/ami-client/blob/master/LICENSE) for more information.
 
 ## Authors
 
