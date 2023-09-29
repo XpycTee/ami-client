@@ -98,8 +98,6 @@ class TCPClient(AMIClientBase):
     async def event_dispatch(self):
         while self.running:
             event = await self._queues['events'].get()
-            if not event:
-                break
             functions = self._get_functions(event['Event'])
             if len(functions) != 0:
                 loop = asyncio.get_event_loop()
@@ -120,11 +118,6 @@ class TCPClient(AMIClientBase):
         while self.running:
             data = await self._queues['messages'].get()
             self.logger.debug(f"New message: {data}")
-            if not data:
-                await self._queues['events'].put(None)
-                for _ in self._resp_waiting:
-                    await self._queues['responses'].put(None)
-                break
 
             message = self._message_to_dict(data)
 

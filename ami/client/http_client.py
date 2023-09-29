@@ -59,8 +59,6 @@ class HTTPClient(AMIClientBase):
 
         while self.running:
             event = await self._queues['events'].get()
-            if not event:
-                break
             functions = self._get_functions(event['Event'])
             if len(functions) != 0:
                 loop = asyncio.get_event_loop()
