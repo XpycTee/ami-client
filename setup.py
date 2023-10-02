@@ -23,7 +23,7 @@ keywords = ("asterisk", "manager", "interface",
 
 setup(
     name='ami-client',
-    version='0.0.1',
+    version='0.0.1rc',
     packages=['ami', 'ami.client'],
     url='https://github.com/XpycTee/ami-client',
     license='Apache-2.0 license',
@@ -34,6 +34,6 @@ setup(
     long_description_content_type="text/markdown",
     classifiers=classifiers,
     keywords=' '.join(keywords),
-    install_requires=['aiohttp', 'jmespath'],
+    install_requires=['aiohttp'],
     python_requires='>=3.7'
 )

@@ -5,7 +5,7 @@ from typing import List, Coroutine, Callable
 
 import aiohttp
 
-from ami import AMIClientBase
+from ami.base import AMIClientBase
 
 
 class HTTPClient(AMIClientBase):

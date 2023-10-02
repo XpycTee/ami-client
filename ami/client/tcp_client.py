@@ -4,9 +4,7 @@ import logging
 import re
 from typing import List, Union, Coroutine, Callable
 
-import jmespath
-
-from ami import AMIClientBase
+from ami.base import AMIClientBase
 
 
 class TCPClient(AMIClientBase):
@@ -113,29 +111,25 @@ class TCPClient(AMIClientBase):
         loop = asyncio.get_event_loop()
         loop.create_task(self._receiving())
 
-        event_list = []
-
         while self.running:
             data = await self._queues['messages'].get()
             self.logger.debug(f"New message: {data}")
 
             message = self._message_to_dict(data)
 
-            if jmespath.search('Event', message):
+            if 'Event' in message:
                 await self._queues['events'].put(message)
-            elif jmespath.search("Response && (EventList == 'start')", message):
-                while True:
-                    list_data = await self._queues['messages'].get()
-                    list_message = self._message_to_dict(list_data)
-                    if jmespath.search("Event && (EventList == 'Complete')", list_message):
-                        event_list.append(list_message)
-                        break
-                    event_list.append(list_message)
-            elif jmespath.search('Response', message):
+            elif 'Response' in message:
                 response_list = [message]
-                if event_list:
-                    response_list.extend(event_list)
-                    event_list = []
+
+                if message.get('EventList') == 'start':
+                    while True:
+                        list_data = await self._queues['messages'].get()
+                        list_message = self._message_to_dict(list_data)
+                        response_list.append(list_message)
+                        if 'Event' in list_message and list_message.get('EventList') == 'Complete':
+                            break
+
                 await self._queues['responses'].put(response_list)
             else:
                 logging.error(f'Проблемы с определением типа сообщения "{message}"')
