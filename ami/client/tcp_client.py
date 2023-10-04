@@ -43,6 +43,8 @@ class TCPClient(AMIClientBase):
         self._reader, self._writer = await asyncio.open_connection(host=self.host, port=self.port)
         if self._ssl:
             context = ssl.SSLContext()
+            context.verify_mode = ssl.VerifyMode.CERT_REQUIRED
+            context.load_default_certs()
             await self.tls_handshake(context)
 
         loop = asyncio.get_event_loop()
