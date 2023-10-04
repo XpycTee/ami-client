@@ -12,13 +12,9 @@ from ami.base import AMIClientBase
 class HTTPClient(AMIClientBase):
     def __init__(self, host: str, port: int = 8088, ssl_enabled: bool = False,
                  cert_ca: Union[str, bytes] = None):
-        if cert_ca is not None and not ssl_enabled:
-            raise AttributeError('For cert ca need use ssl_enabled')
         if ssl_enabled and port == 8088:
             port = 8089
-        super().__init__(host, port)
-        self._ssl_enabled = ssl_enabled
-        self._cert_chain = cert_ca
+        super().__init__(host, port, ssl_enabled, cert_ca)
         self.logger = logging.getLogger('HTTP Client')
         self._queues = {}
         self._cookies = aiohttp.CookieJar()

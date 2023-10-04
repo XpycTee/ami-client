@@ -81,18 +81,19 @@ from ami.client import TCPClient
 Создайте экземпляр клиента, передавая адрес сервера Asterisk в качестве параметра:
 
 ```python
-from ami.client import HTTPClient
+from ami.client import HTTPClient, TCPClient
 
+# Базовое подключение без шифрования
 client = HTTPClient('localhost')
-```
-
-или
-
-```python
-from ami.client import TCPClient
-
 client = TCPClient('localhost')
+
+# Подключение с использованием SSL/TLS шифрования и указанием сертификата CA
+client = HTTPClient('localhost', ssl_enabled=True, cert_ca='/path/to/ca.crt')
+client = TCPClient('localhost', ssl_enabled=True, cert_ca='/path/to/ca.crt')
 ```
+
+
+> Примечание: Если параметры `cert_ca` и `ssl_enabled` указаны, необходимо убедиться, что SSL/TLS шифрование включено (`ssl_enabled=True`), иначе будет вызвано исключение `AttributeError`.
 
 Установите соединение с сервером Asterisk, указав имя пользователя и пароль:
 
@@ -259,7 +260,7 @@ response = await client.ami_request(data)
 ```
 Вы должны передать словарь с параметрами запроса в метод `ami_request`. В данном случае, используется `BlindTransfer` в поле `Action`, а также указываются значения для `Channel`, `Exten` и `Context`.
 
-Подробнее об действиях (Actions), вы можете узнать в документации Asterisk: [AMI Actions](https://docs.asterisk.org/Asterisk_16_Documentation/API_Documentation/AMI_Actions)
+> Подробнее об действиях (Actions), вы можете узнать в документации Asterisk: [AMI Actions](https://docs.asterisk.org/Asterisk_16_Documentation/API_Documentation/AMI_Actions)
 
 Вы можете использовать этот метод для выполнения запросов с различными параметрами в зависимости от ваших потребностей.
 
@@ -282,7 +283,7 @@ await client.register_callback('EventName', callback)
 
 Теперь, когда клиент получит событие с именем `EventName`, будет выполнен обратный вызов `callback`, где вы можете определить необходимые действия, которые должны выполняться при получении данного события.
 
-Подробнее о событиях, вы можете узнать в документации Asterisk: [AMI Events](https://docs.asterisk.org/Asterisk_16_Documentation/API_Documentation/AMI_Events)
+> Подробнее о событиях, вы можете узнать в документации Asterisk: [AMI Events](https://docs.asterisk.org/Asterisk_16_Documentation/API_Documentation/AMI_Events)
 
 
 

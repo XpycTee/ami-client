@@ -4,22 +4,26 @@ from typing import Dict, List, Callable, Any, Coroutine, Optional, Union
 
 
 class AMIClientBase:
-    """
-    Класс AMIClientBase является родительским для классов HTTPClient и TCPClient.
-    """
-
-    def __init__(self, host: str, port: int):
+    def __init__(self, host: str, port: int, ssl_enabled: bool = False,
+                 cert_ca: Union[str, bytes] = None):
         """
         Initializes the AMI Client
 
-        :param host: The server host
+        :param host: The server hostname or ip
         :param port: The server port
+        :param ssl_enabled: Indicates whether SSL/TLS encryption is enabled (default is False)
+        :param cert_ca: The CA certificate chain file or bytes (optional)
+        :raises AttributeError: If cert_ca is provided without enabling SSL/TLS encryption
         """
+        if cert_ca is not None and not ssl_enabled:
+            raise AttributeError('For cert ca need use ssl_enabled')
         self.logger = logging.getLogger('AMI Client')
         self._event_callbacks: Dict[str, List[Callable[[dict, Any], Coroutine]]] = {}
         self.running = False
         self.host = host
         self.port = port
+        self._ssl_enabled = ssl_enabled
+        self._cert_chain = cert_ca
 
     @abstractmethod
     async def connect(self, username: str, password: str) -> List[dict]:

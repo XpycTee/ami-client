@@ -83,31 +83,35 @@ client = TCPClient('localhost')
 
 ### Connecting
 
-Create an instance of the client by passing the Asterisk server address as a parameter:
+Create a client instance by passing the Asterisk server address as a parameter:
 
 ```python
+from ami.client import HTTPClient, TCPClient
+
+# Basic connection without encryption
 client = HTTPClient('localhost')
-```
-
-or
-
-```python
 client = TCPClient('localhost')
+
+# Connection using SSL/TLS encryption and specifying the CA certificate
+client = HTTPClient('localhost', ssl_enabled=True, cert_ca='/path/to/ca.crt')
+client = TCPClient('localhost', ssl_enabled=True, cert_ca='/path/to/ca.crt')
 ```
 
-Establish a connection to the Asterisk server by specifying the username and password:
+> Note: If the `cert_ca` and `ssl_enabled` parameters are specified, make sure that SSL/TLS encryption is enabled (`ssl_enabled=True`), otherwise an `AttributeError` exception will be raised.
+
+Establish a connection with the Asterisk server by providing the username and password:
 
 ```python
-call_resp = await client.originate(originator=FROM, extension=DESTINATION)
+connect_resp = await client.connect(username='hello', password='world')
 ```
 
+Note that the response of the request will be represented as a dictionary, for example:
 
-The result will be a dictionary indicating the successful resolution of the call to the queue:
 ```json
 [
     {
-        "Response": "Success",
-        "Message": "Originate successfully queued"
+        "Response": "Success", 
+        "Message": "Authentication accepted"
     }
 ]
 ```
@@ -261,7 +265,7 @@ The result of the request will be a dictionary with the response from the Asteri
 ```
 You need to pass a dictionary with the request parameters to the `ami_request` method. In this case, `BlindTransfer` is used in the `Action` field, and specific values are provided for `Channel`, `Exten`, and `Context`.
 
-For more information about actions, you can refer to the Asterisk documentation: [AMI Actions](https://docs.asterisk.org/Asterisk_16_Documentation/API_Documentation/AMI_Actions)
+> For more information about actions, you can refer to the Asterisk documentation: [AMI Actions](https://docs.asterisk.org/Asterisk_16_Documentation/API_Documentation/AMI_Actions)
 
 You can use this method to make requests with different parameters based on your needs.
 
@@ -282,7 +286,7 @@ We then call the `register_callback` method on the client instance, passing it t
 
 Now, when the client receives an event with the name `EventName`, the `callback` callback will be executed, where you can define the necessary actions to be performed upon receiving that event.
 
-For more information about events, you can refer to the Asterisk documentation: [AMI Events](https://docs.asterisk.org/Asterisk_16_Documentation/API_Documentation/AMI_Events)
+> For more information about events, you can refer to the Asterisk documentation: [AMI Events](https://docs.asterisk.org/Asterisk_16_Documentation/API_Documentation/AMI_Events)
 
 
 ## License
