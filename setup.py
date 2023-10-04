@@ -23,7 +23,7 @@ keywords = ("asterisk", "manager", "interface",
 
 setup(
     name='ami-client',
-    version='1.1.0rc',
+    version='1.1.2rc',
     packages=['ami', 'ami.client'],
     url='https://github.com/XpycTee/ami-client',
     license='Apache-2.0 license',
