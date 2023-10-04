@@ -1,7 +1,8 @@
 import asyncio
 import logging
+import ssl
 import urllib.parse
-from typing import List, Coroutine, Callable
+from typing import List, Coroutine, Callable, Union
 
 import aiohttp
 
@@ -9,11 +10,15 @@ from ami.base import AMIClientBase
 
 
 class HTTPClient(AMIClientBase):
-    def __init__(self, host: str, port: int = 8088, ssl: bool = False):
-        if ssl and port == 8088:
+    def __init__(self, host: str, port: int = 8088, ssl_enabled: bool = False,
+                 cert_ca: Union[str, bytes] = None):
+        if cert_ca is not None and not ssl_enabled:
+            raise AttributeError('For cert ca need use ssl_enabled')
+        if ssl_enabled and port == 8088:
             port = 8089
         super().__init__(host, port)
-        self._ssl = ssl
+        self._ssl_enabled = ssl_enabled
+        self._cert_chain = cert_ca
         self.logger = logging.getLogger('HTTP Client')
         self._queues = {}
         self._cookies = aiohttp.CookieJar()
@@ -89,13 +94,19 @@ class HTTPClient(AMIClientBase):
 
     async def ami_request(self, query: dict) -> List[dict]:
         headers = {"Content-Type": "text/plain"}
-        if self._ssl:
+        kwargs = {}
+        if self._ssl_enabled:
             scheme = 'https'
+            if self._cert_chain is not None:
+                context = ssl.SSLContext()
+                context.verify_mode = ssl.VerifyMode.CERT_REQUIRED
+                context.load_verify_locations(self._cert_chain)
+                kwargs['ssl'] = context
         else:
             scheme = 'http'
         url = f"{scheme}://{self.host}:{self.port}/rawman?{urllib.parse.urlencode(query).lower()}"
         async with aiohttp.ClientSession(cookie_jar=self._cookies) as session:
-            async with session.get(url=url, headers=headers) as resp:
+            async with session.get(url=url, headers=headers, **kwargs) as resp:
                 response_text = await resp.text(encoding='windows-1251', errors='replace')
                 self.logger.debug(resp.status, resp.reason, response_text)
                 response = self._headers_to_dict(response_text)

@@ -9,11 +9,15 @@ from ami.base import AMIClientBase
 
 
 class TCPClient(AMIClientBase):
-    def __init__(self, host: str, port: int = 5038, ssl: bool = False):
-        if ssl and port == 5038:
+    def __init__(self, host: str, port: int = 5038, ssl_enabled: bool = False,
+                 cert_ca: Union[str, bytes] = None):
+        if cert_ca is not None and not ssl_enabled:
+            raise AttributeError('For cert ca need use ssl_enabled')
+        if ssl_enabled and port == 5038:
             port = 5039
         super().__init__(host, port)
-        self._ssl = ssl
+        self._ssl_enabled = ssl_enabled
+        self._cert_chain = cert_ca
         self.logger = logging.getLogger('TCP Client')
         self._reader: Union[asyncio.StreamReader, None] = None
         self._writer: Union[asyncio.StreamWriter, None] = None
@@ -41,10 +45,14 @@ class TCPClient(AMIClientBase):
         self._queues['events'] = asyncio.Queue()
         self._queues['responses'] = asyncio.Queue()
         self._reader, self._writer = await asyncio.open_connection(host=self.host, port=self.port)
-        if self._ssl:
+        if self._ssl_enabled:
             context = ssl.SSLContext()
             context.verify_mode = ssl.VerifyMode.CERT_REQUIRED
-            context.load_default_certs()
+            if self._cert_chain is not None:
+                context.load_verify_locations(self._cert_chain)
+            else:
+                context.load_default_certs()
+
             await self.tls_handshake(context)
 
         loop = asyncio.get_event_loop()
