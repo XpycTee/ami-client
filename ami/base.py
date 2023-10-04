@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from abc import abstractmethod
 from typing import Dict, List, Callable, Any, Coroutine, Optional, Union
@@ -20,6 +21,8 @@ class AMIClientBase:
         self.logger = logging.getLogger('AMI Client')
         self._event_callbacks: Dict[str, List[Callable[[dict, Any], Coroutine]]] = {}
         self.running = False
+        self._loop_tasks = list()
+        self._queues = {}
         self.host = host
         self.port = port
         self._ssl_enabled = ssl_enabled
@@ -91,6 +94,7 @@ class AMIClientBase:
         """
         response = await self.ami_request({"Action": "LogOff"})
         self.running = False
+        await asyncio.gather(*self._loop_tasks)
         return response
 
     async def channels(self) -> List[dict]:

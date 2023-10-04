@@ -26,7 +26,7 @@ class HTTPClient(AMIClientBase):
         login_resp = await self._login(username, password)
 
         loop = asyncio.get_event_loop()
-        loop.create_task(self.event_dispatch())
+        self._loop_tasks.append(loop.create_task(self.event_dispatch()))
 
         return login_resp
 
@@ -59,10 +59,20 @@ class HTTPClient(AMIClientBase):
 
     async def event_dispatch(self):
         loop = asyncio.get_event_loop()
-        loop.create_task(self._event_receiving())
+        self._loop_tasks.append(loop.create_task(self._event_receiving()))
 
         while self.running:
-            event = await self._queues['events'].get()
+            try:
+                # retrieve the get() awaitable
+                get_await = self._queues['events'].get()
+                # await the awaitable with a timeout
+                event = await asyncio.wait_for(get_await, 0.5)
+            except asyncio.TimeoutError:
+                self.logger.debug('Consumer: gave up waiting...')
+                continue
+            # check for stop
+            if event is None:
+                break
             functions = self._get_functions(event['Event'])
             if len(functions) != 0:
                 loop = asyncio.get_event_loop()

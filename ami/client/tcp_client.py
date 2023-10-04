@@ -52,8 +52,8 @@ class TCPClient(AMIClientBase):
             await self.tls_handshake(context)
 
         loop = asyncio.get_event_loop()
-        loop.create_task(self.message_loop())
-        loop.create_task(self.event_dispatch())
+        self._loop_tasks.append(loop.create_task(self.message_loop()))
+        self._loop_tasks.append(loop.create_task(self.event_dispatch()))
 
         login_resp = await self._login(username, password)
         if login_resp[0].get('Response') == 'Error':
@@ -127,7 +127,17 @@ class TCPClient(AMIClientBase):
 
     async def event_dispatch(self):
         while self.running:
-            event = await self._queues['events'].get()
+            try:
+                # retrieve the get() awaitable
+                get_await = self._queues['events'].get()
+                # await the awaitable with a timeout
+                event = await asyncio.wait_for(get_await, 0.5)
+            except asyncio.TimeoutError:
+                self.logger.debug('Consumer: gave up waiting...')
+                continue
+            # check for stop
+            if event is None:
+                break
             functions = self._get_functions(event['Event'])
             if len(functions) != 0:
                 loop = asyncio.get_event_loop()
@@ -141,7 +151,7 @@ class TCPClient(AMIClientBase):
         :return: None
         """
         loop = asyncio.get_event_loop()
-        loop.create_task(self._receiving())
+        self._loop_tasks.append(loop.create_task(self._receiving()))
 
         while self.running:
             data = await self._queues['messages'].get()
