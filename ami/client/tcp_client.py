@@ -2,19 +2,38 @@ import asyncio
 import concurrent.futures
 import logging
 import re
-from typing import List, Union, Coroutine, Callable
+import ssl
+from typing import List, Union, Coroutine, Callable, Optional
 
 from ami.base import AMIClientBase
 
 
 class TCPClient(AMIClientBase):
-    def __init__(self, host: str, port: int = 5038):
+    def __init__(self, host: str, port: int = 5038, ssl: bool = False):
+        if ssl and port == 5038:
+            port = 5039
         super().__init__(host, port)
+        self._ssl = ssl
         self.logger = logging.getLogger('TCP Client')
         self._reader: Union[asyncio.StreamReader, None] = None
         self._writer: Union[asyncio.StreamWriter, None] = None
         self._queues = {}
         self._resp_waiting = []
+
+    async def tls_handshake(self, ssl_context: Optional[ssl.SSLContext] = None):
+        # Get from toolbox https://github.com/synchronizing/toolbox
+        transport = self._writer.transport
+        protocol = transport.get_protocol()
+
+        loop = asyncio.get_event_loop()
+        new_transport = await loop.start_tls(
+            transport=transport,
+            protocol=protocol,
+            sslcontext=ssl_context
+        )
+
+        self._reader._transport = new_transport
+        self._writer._transport = new_transport
 
     async def connect(self, username, password) -> List[dict]:
         self.running = True
@@ -22,12 +41,19 @@ class TCPClient(AMIClientBase):
         self._queues['events'] = asyncio.Queue()
         self._queues['responses'] = asyncio.Queue()
         self._reader, self._writer = await asyncio.open_connection(host=self.host, port=self.port)
+        if self._ssl:
+            context = ssl.SSLContext()
+            await self.tls_handshake(context)
 
         loop = asyncio.get_event_loop()
         loop.create_task(self.message_loop())
         loop.create_task(self.event_dispatch())
 
-        return await self._login(username, password)
+        login_resp = await self._login(username, password)
+        if login_resp[0].get('Response') == 'Error':
+            self.running = False
+
+        return login_resp
 
     async def register_callback(self, event_name: str, callback: Callable[[dict, 'TCPClient'], Coroutine]) -> None:
         await super().register_callback(event_name, callback)
@@ -123,7 +149,7 @@ class TCPClient(AMIClientBase):
                 response_list = [message]
 
                 if message.get('EventList') == 'start':
-                    while True:
+                    while self.running:
                         list_data = await self._queues['messages'].get()
                         list_message = self._message_to_dict(list_data)
                         response_list.append(list_message)

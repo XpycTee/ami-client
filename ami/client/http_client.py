@@ -9,8 +9,11 @@ from ami.base import AMIClientBase
 
 
 class HTTPClient(AMIClientBase):
-    def __init__(self, host: str, port: int = 8088):
+    def __init__(self, host: str, port: int = 8088, ssl: bool = False):
+        if ssl and port == 8088:
+            port = 8089
         super().__init__(host, port)
+        self._ssl = ssl
         self.logger = logging.getLogger('HTTP Client')
         self._queues = {}
         self._cookies = aiohttp.CookieJar()
@@ -86,7 +89,11 @@ class HTTPClient(AMIClientBase):
 
     async def ami_request(self, query: dict) -> List[dict]:
         headers = {"Content-Type": "text/plain"}
-        url = f"http://{self.host}:{self.port}/rawman?{urllib.parse.urlencode(query).lower()}"
+        if self._ssl:
+            scheme = 'https'
+        else:
+            scheme = 'http'
+        url = f"{scheme}://{self.host}:{self.port}/rawman?{urllib.parse.urlencode(query).lower()}"
         async with aiohttp.ClientSession(cookie_jar=self._cookies) as session:
             async with session.get(url=url, headers=headers) as resp:
                 response_text = await resp.text(encoding='windows-1251', errors='replace')
