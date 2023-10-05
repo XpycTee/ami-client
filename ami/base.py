@@ -233,3 +233,26 @@ class AMIClientBase:
             "Context": context
         }
         return await self.ami_request(data)
+
+    async def attended_transfer(self, channel: str, extension: Union[str, int], context: str = "from-internal") -> List[dict]:
+        """
+        Sends an attended transfer AMI request
+
+        :param channel: The channel to transfer
+        :param extension: The number or extension to transfer to
+        :param context: The context to transfer to
+        :return: The response from the server
+        """
+        data = {
+            "Action": "Atxfer",
+            "Channel": channel,
+            "Exten": extension,
+            "Context": context
+        }
+        return await self.ami_request(data)
+
+    async def ping(self):
+        """
+        A 'Ping' action will elicit a 'Pong' response. Used to keep the manager connection open.
+        """
+        return await self.ami_request({"Action": "Ping"})
