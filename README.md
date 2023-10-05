@@ -1,5 +1,5 @@
 
-<h3 align="center">Async AMI Client</h3>
+<h1 align="center">Async AMI Client</h1>
 
 <p align="center">
 Асинхронный клиент для работы с Asterisk Manager Interface
