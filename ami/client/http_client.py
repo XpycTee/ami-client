@@ -66,9 +66,9 @@ class HTTPClient(AMIClientBase):
                 # retrieve the get() awaitable
                 get_await = self._queues['events'].get()
                 # await the awaitable with a timeout
-                event = await asyncio.wait_for(get_await, 0.5)
+                event = await asyncio.wait_for(get_await, 1)
             except asyncio.TimeoutError:
-                self.logger.debug('Consumer: gave up waiting...')
+                self.logger.debug('Events timeout, retry')
                 continue
             # check for stop
             if event is None:

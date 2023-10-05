@@ -1,5 +1,4 @@
 import asyncio
-import concurrent.futures
 import logging
 import re
 import ssl
@@ -107,11 +106,7 @@ class TCPClient(AMIClientBase):
             try:
                 line = await asyncio.wait_for(self._reader.readline(), timeout=5)
             except TimeoutError:
-                self.logger.error("Socket timeout, wait 1 sec")
-                await asyncio.sleep(1)
-                continue
-            except concurrent.futures._base.TimeoutError:
-                self.logger.error("Concurrent.futures timeout error")
+                self.logger.debug("Socket timeout, retry")
                 continue
 
             if not line.strip():
@@ -131,9 +126,9 @@ class TCPClient(AMIClientBase):
                 # retrieve the get() awaitable
                 get_await = self._queues['events'].get()
                 # await the awaitable with a timeout
-                event = await asyncio.wait_for(get_await, 0.5)
+                event = await asyncio.wait_for(get_await, 1)
             except asyncio.TimeoutError:
-                self.logger.debug('Consumer: gave up waiting...')
+                self.logger.debug('Events timeout, retry')
                 continue
             # check for stop
             if event is None:
