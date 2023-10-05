@@ -198,10 +198,10 @@ ping_resp = await client.ping()
 
 ### Attended Transfer
 
-Для выполнения перевода с участием оператора используйте следующий код:
+Для выполнения перевода с участием оператора в указанном канале `channel` на номер `REDIRECT`,  используйте следующий код:
 
 ```python
-transfer_resp = await client.attended_transfer()
+transfer_resp = await client.attended_transfer(channel=channel, extension=REDIRECT)
 ```
 
 Результатом будет список словарей, указывающих на успешное добавление запроса на перевод в очередь:

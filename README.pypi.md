@@ -200,10 +200,10 @@ The result will be a list of dictionaries indicating the successful execution of
 
 ### Attended Transfer
 
-To perform an attended transfer with an operator, use the following code:
+To perform an attended transfer with an operator on the specified `channel` to the `REDIRECT` extension, use the following code:
 
 ```python
-transfer_resp = await client.attended_transfer()
+transfer_resp = await client.attended_transfer(channel=channel, extension=REDIRECT)
 ```
 
 The result will be a list of dictionaries indicating the successful addition of the transfer request to the queue:
