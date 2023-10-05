@@ -22,6 +22,8 @@ Asynchronous client for working with Asterisk Manager Interface
     * [Connecting](#connecting)
     * [Originate](#originate)
     * [Channels](#channels)
+    * [Ping](#ping)
+    * [Attended Transfer](#attended-transfer)
     * [Blind Transfer](#blind-transfer)
     * [Redirect](#redirect)
     * [Logoff](#logoff)
@@ -105,7 +107,7 @@ Establish a connection with the Asterisk server by providing the username and pa
 connect_resp = await client.connect(username='hello', password='world')
 ```
 
-Note that the response of the request will be represented as a dictionary, for example:
+Note that the response of the request will be represented as a list of dictionaries, for example:
 
 ```json
 [
@@ -125,7 +127,7 @@ Send a request to the Asterisk server to initiate a call from the `FROM` number 
 call_resp = await client.originate(originator=FROM, extension=DESTINATION)
 ```
 
-Note that the result of the request will be represented as a dictionary, for example:
+Note that the result of the request will be represented as a list of dictionaries, for example:
 
 ```json
 [
@@ -180,6 +182,44 @@ The result will be represented as a list of dictionaries, where each dictionary 
 ]
 ```
 
+### Ping
+
+To execute the ping command and check the server availability, use the following code:
+
+```python
+ping_resp = await client.ping()
+```
+
+The result will be a list of dictionaries indicating the successful execution of the ping command:
+
+```json
+[
+    {
+        "Response": "Success",
+        "Ping": "Pong",
+        "Timestamp": "1696496997.515802"
+    }
+]
+```
+
+### Attended Transfer
+
+To perform an attended transfer with an operator, use the following code:
+
+```python
+transfer_resp = await client.attended_transfer()
+```
+
+The result will be a list of dictionaries indicating the successful addition of the transfer request to the queue:
+
+```json
+[
+    {
+        "Response": "Success",
+        "Message": "Atxfer successfully queued"
+    }
+]
+```
 
 ### Blind Transfer
 
@@ -190,7 +230,7 @@ transfer_resp = await client.blind_transfer(channel=channel, extension=REDIRECT)
 ```
 
 
-The result will be a dictionary indicating the successful execution of the transfer:
+The result will be a list of dictionaries indicating the successful execution of the transfer:
 ```json
 [
     {
@@ -208,7 +248,7 @@ To redirect a call on the specified `channel` to the `REDIRECT` extension, use t
 redirect_resp = await client.redirect(extension=REDIRECT, channel=channel)
 ```
 
-The result will be a dictionary indicating the successful execution of the redirect:
+The result will be a list of dictionaries indicating the successful execution of the redirect:
 
 ```json
 [
@@ -227,7 +267,7 @@ To disconnect from the Asterisk server, use the following code:
 logoff_resp = await client.logoff()
 ```
 
-The result will be a dictionary confirming the disconnection:
+The result will be a list of dictionaries confirming the disconnection:
 
 ```json
 [
@@ -253,7 +293,7 @@ data = {
 response = await client.ami_request(data)
 ```
 
-The result of the request will be a dictionary with the response from the Asterisk server:
+The result of the request will be a list of dictionaries with the response from the Asterisk server:
 
 ```json
 [

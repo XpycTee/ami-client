@@ -22,6 +22,8 @@
     * [Подключение](#Подключение)
     * [Originate](#originate)
     * [Channels](#channels)
+    * [Ping](#ping)
+    * [Attended Transfer](#attended-transfer)
     * [Blind Transfer](#blind-transfer)
     * [Redirect](#redirect)
     * [Logoff](#logoff)
@@ -102,7 +104,7 @@ connect_resp = await client.connect(username='hello', password='world')
 ```
 
 
-Обратите внимание, что результат запроса будет представлен в виде словаря, например:
+Обратите внимание, что результат запроса будет представлен в виде списока словарей, например:
 ```json
 [
     {
@@ -120,7 +122,7 @@ call_resp = await client.originate(originator=FROM, extension=DESTINATION)
 ```
 
 
-Результатом будет словарь, указывающий на успешное постановление звонка в очередь:
+Результатом будет список словарей, указывающий на успешное постановление звонка в очередь:
 ```json
 [
     {
@@ -174,6 +176,45 @@ channels_resp = await client.channels()
 ]
 ```
 
+### Ping
+
+Для выполнения команды ping и проверки доступности сервера, используйте следующий код:
+
+```python
+ping_resp = await client.ping()
+```
+
+Результатом будет список словарей, указывающих на успешное выполнение команды ping:
+
+```json
+[
+    {
+        "Response": "Success",
+        "Ping": "Pong",
+        "Timestamp": "1696496997.515802"
+    }
+]
+```
+
+### Attended Transfer
+
+Для выполнения перевода с участием оператора используйте следующий код:
+
+```python
+transfer_resp = await client.attended_transfer()
+```
+
+Результатом будет список словарей, указывающих на успешное добавление запроса на перевод в очередь:
+
+```json
+[
+    {
+        "Response": "Success",
+        "Message": "Atxfer successfully queued"
+    }
+]
+```
+
 
 ### Blind Transfer
 
@@ -184,7 +225,7 @@ transfer_resp = await client.blind_transfer(channel=channel, extension=REDIRECT)
 ```
 
 
-Результатом будет словарь, указывающий на успешное выполнение перевода:
+Результатом будет список словарей, указывающий на успешное выполнение перевода:
 
 ```json
 [
@@ -203,7 +244,7 @@ transfer_resp = await client.blind_transfer(channel=channel, extension=REDIRECT)
 redirect_resp = await client.redirect(extension=REDIRECT, channel=channel)
 ```
 
-Результатом будет словарь, указывающий на успешное выполнение перенаправления:
+Результатом будет список словарей, указывающий на успешное выполнение перенаправления:
 
 ```json
 [
@@ -222,7 +263,7 @@ redirect_resp = await client.redirect(extension=REDIRECT, channel=channel)
 logoff_resp = await client.logoff()
 ```
 
-Результатом будет словарь с подтверждением разрыва соединения:
+Результатом будет список словарей с подтверждением разрыва соединения:
 
 ```json
 [
@@ -248,7 +289,7 @@ data = {
 response = await client.ami_request(data)
 ```
 
-Результатом выполнения запроса будет словарь с ответом от сервера Asterisk
+Результатом выполнения запроса будет список словарей с ответом от сервера Asterisk
 
 ```json
 [
