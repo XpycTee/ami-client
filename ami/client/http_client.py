@@ -15,6 +15,11 @@ class HTTPClient(AMIClientBase):
         if ssl_enabled and port == 8088:
             port = 8089
         super().__init__(host, port, ssl_enabled, cert_ca)
+        self._context = None
+        if cert_ca is not None:
+            self._context = ssl.SSLContext()
+            self._context.verify_mode = ssl.VerifyMode.CERT_REQUIRED
+            self._context.load_verify_locations(cert_ca)
         self.logger = logging.getLogger('HTTP Client')
         self._queues = {}
         self._cookies = aiohttp.CookieJar()
@@ -99,20 +104,14 @@ class HTTPClient(AMIClientBase):
         return header_list
 
     async def ami_request(self, query: dict) -> List[dict]:
+        scheme = 'http'
         headers = {"Content-Type": "text/plain"}
-        kwargs = {}
+        get_query = urllib.parse.urlencode(query).lower()
         if self._ssl_enabled:
             scheme = 'https'
-            if self._cert_chain is not None:
-                context = ssl.SSLContext()
-                context.verify_mode = ssl.VerifyMode.CERT_REQUIRED
-                context.load_verify_locations(self._cert_chain)
-                kwargs['ssl'] = context
-        else:
-            scheme = 'http'
-        url = f"{scheme}://{self.host}:{self.port}/rawman?{urllib.parse.urlencode(query).lower()}"
+        url = f"{scheme}://{self.host}:{self.port}/rawman?{get_query}"
         async with aiohttp.ClientSession(cookie_jar=self._cookies) as session:
-            async with session.get(url=url, headers=headers, **kwargs) as resp:
+            async with session.get(url=url, headers=headers, ssl=self._context) as resp:
                 response_text = await resp.text(encoding='windows-1251', errors='replace')
                 self.logger.debug(resp.status, resp.reason, response_text)
                 response = self._headers_to_dict(response_text)
