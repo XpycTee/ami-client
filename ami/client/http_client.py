@@ -4,7 +4,7 @@ import ssl
 import urllib.parse
 from typing import List, Coroutine, Callable, Union
 
-import aiohttp
+import httpx
 
 from ami.base import AMIClientBase
 
@@ -15,14 +15,16 @@ class HTTPClient(AMIClientBase):
         if ssl_enabled and port == 8088:
             port = 8089
         super().__init__(host, port, ssl_enabled, cert_ca)
-        self._context = None
+        self._verify = None
         if cert_ca is not None:
-            self._context = ssl.SSLContext()
-            self._context.verify_mode = ssl.VerifyMode.CERT_REQUIRED
-            self._context.load_verify_locations(cert_ca)
+            self._verify = ssl.SSLContext()
+            self._verify.verify_mode = ssl.VerifyMode.CERT_REQUIRED
+            self._verify.load_verify_locations(cert_ca)
+        if self._verify is None:
+            self._verify = True
         self.logger = logging.getLogger('HTTP Client')
         self._queues = {}
-        self._cookies = aiohttp.CookieJar()
+        self._cookies = httpx.Cookies()
 
     async def connect(self, username, password) -> List[dict]:
         self.running = True
@@ -110,11 +112,12 @@ class HTTPClient(AMIClientBase):
         if self._ssl_enabled:
             scheme = 'https'
         url = f"{scheme}://{self.host}:{self.port}/rawman?{get_query}"
-        async with aiohttp.ClientSession(cookie_jar=self._cookies) as session:
-            async with session.get(url=url, headers=headers, ssl=self._context) as resp:
-                response_text = await resp.text(encoding='windows-1251', errors='replace')
-                self.logger.debug(resp.status, resp.reason, response_text)
-                response = self._headers_to_dict(response_text)
-                if query['Action'] != 'WaitEvent':
-                    self.logger.info(f"Response {response} for {query}")
-                return response
+        async with httpx.AsyncClient(cookies=self._cookies, verify=self._verify) as client:
+            resp = await client.get(url, headers=headers)
+            resp.raise_for_status()
+            response_text = resp.text #resp.content.decode('windows-1251', errors='replace')
+            self.logger.debug("%s %s %s", resp.status_code, getattr(resp, 'reason_phrase', ''), response_text)
+            response = self._headers_to_dict(response_text)
+            if query['Action'] != 'WaitEvent':
+                self.logger.info(f"Response {response} for {query}")
+            return response
