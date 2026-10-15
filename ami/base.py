@@ -6,7 +6,7 @@ from typing import Dict, List, Callable, Any, Coroutine, Optional, Union
 
 class AMIClientBase:
     def __init__(self, host: str, port: int, ssl_enabled: bool = False,
-                 cert_ca: Union[str, bytes] = None):
+                 cert_ca: Optional[Union[str, bytes]] = None):
         """
         Initializes the AMI Client
 
@@ -94,7 +94,11 @@ class AMIClientBase:
         """
         response = await self.ami_request({"Action": "LogOff"})
         self.running = False
-        await asyncio.gather(*self._loop_tasks)
+        await asyncio.gather(*self._loop_tasks, return_exceptions=True)
+        self._loop_tasks.clear()
+        close = getattr(self, 'close', None)
+        if callable(close):
+            await close()
         return response
 
     async def channels(self) -> List[dict]:
@@ -107,8 +111,8 @@ class AMIClientBase:
 
     async def originate(
             self,
-            originator: int,
-            extension: int,
+            originator: str,
+            extension: str,
             priority: int = 1,
             run_async: bool = True,
             timeout: int = 15,
@@ -170,7 +174,7 @@ class AMIClientBase:
             data["OtherChannelId"] = other_channel_id
         if variables is not None:
             for n, var in enumerate(variables):
-                data[f"Variable[{n}]"] = variables
+                data[f"Variable[{n}]"] = var
 
         return await self.ami_request(data)
 
@@ -180,10 +184,10 @@ class AMIClientBase:
             extension: int,
             context: str = "from-internal",
             priority: int = 1,
-            extra_channel: str = None,
-            extra_extension: int = None,
-            extra_context: str = None,
-            extra_priority: int = None,
+            extra_channel: Optional[str] = None,
+            extra_extension: Optional[int] = None,
+            extra_context: Optional[str] = None,
+            extra_priority: Optional[int] = None,
     ) -> List[dict]:
         """
         Sends a redirect AMI request
