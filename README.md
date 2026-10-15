@@ -92,6 +92,10 @@ client = TCPClient('localhost')
 # Подключение с использованием SSL/TLS шифрования и указанием сертификата CA
 client = HTTPClient('localhost', ssl_enabled=True, cert_ca='/path/to/ca.crt')
 client = TCPClient('localhost', ssl_enabled=True, cert_ca='/path/to/ca.crt')
+
+# Дополнительные параметры конструктора (одинаковые для обоих клиентов)
+client = HTTPClient('localhost', encoding='windows-1251', read_timeout=5.0, request_timeout=30.0)
+client = TCPClient('localhost', encoding='windows-1251', read_timeout=5.0, request_timeout=30.0)
 ```
 
 
