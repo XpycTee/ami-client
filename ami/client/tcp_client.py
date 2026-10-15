@@ -1,7 +1,10 @@
 import asyncio
 import logging
+import os
 import re
 import ssl
+import subprocess
+import sys
 import uuid
 from typing import List, Union, Coroutine, Callable, Optional, Dict, Any
 
@@ -53,19 +56,33 @@ class TCPClient(AMIClientBase):
 
         ssl_context = None
         if self._ssl_enabled:
-            ssl_context = ssl.create_default_context()
-            ssl_context.check_hostname = True
-            ssl_context.verify_mode = ssl.VerifyMode.CERT_REQUIRED
-            if self._cert_chain is not None:
-                ssl_context.load_verify_locations(self._cert_chain)
+            ssl_context = self._build_ssl_context()
 
         try:
-            self._reader, self._writer = await asyncio.open_connection(
-                host=self.host,
-                port=self.port,
-                ssl=ssl_context,
-                server_hostname=self.host if ssl_context is not None else None,
-            )
+            await self._open_connection(ssl_context)
+        except ssl.SSLCertVerificationError as exc:
+            # Python 3.13+ no longer reads the macOS keychain
+            # (ssl.enum_certificates was removed, the bundled cert.pem may be
+            # missing), so trusted roots installed there are invisible.
+            # Retry with CA certificates loaded from the System/login keychains.
+            if ssl_context is None or self._cert_chain is not None or sys.platform != 'darwin':
+                self.running = False
+                self.logger.error("Failed to connect to %s:%s: %s", self.host, self.port, exc)
+                raise
+            self.logger.info(
+                "SSL verify failed (%s). Expanding trust with CA from macOS keychain...", exc)
+            added = self._load_macos_keychain_certs(ssl_context)
+            if added > 0:
+                try:
+                    await self._open_connection(ssl_context)
+                except (OSError, ssl.SSLError) as retry_exc:
+                    self.running = False
+                    self.logger.error("Failed to connect to %s:%s: %s", self.host, self.port, retry_exc)
+                    raise retry_exc
+            else:
+                self.running = False
+                self.logger.error("Failed to connect to %s:%s: %s", self.host, self.port, exc)
+                raise
         except (OSError, ssl.SSLError) as exc:
             self.running = False
             self.logger.error("Failed to connect to %s:%s: %s", self.host, self.port, exc)
@@ -81,6 +98,83 @@ class TCPClient(AMIClientBase):
             self.logger.error("Login failed: %s", login_resp)
 
         return login_resp
+
+    async def _open_connection(self, ssl_context: Optional[ssl.SSLContext]) -> None:
+        """
+        Opens the underlying TCP/SSL connection.
+
+        :param ssl_context: SSL context or None for a plain TCP connection
+        :return: None
+        """
+        self._reader, self._writer = await asyncio.open_connection(
+            host=self.host,
+            port=self.port,
+            ssl=ssl_context,
+            server_hostname=self.host if ssl_context is not None else None,
+        )
+
+    def _build_ssl_context(self) -> ssl.SSLContext:
+        """
+        Creates the SSL context used for a secure connection.
+
+        - If cert_ca is provided, it is loaded as the trusted CA.
+        - Otherwise the system trust store is used. On macOS, Python 3.13+
+          no longer sees the keychain (ssl.enum_certificates was removed,
+          the bundled cert.pem may be missing), so on a verification failure
+          the client expands trust with System/login keychain certificates
+          (see _load_macos_keychain_certs).
+
+        :return: the configured SSL context
+        """
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = True
+        ssl_context.verify_mode = ssl.VerifyMode.CERT_REQUIRED
+        if self._cert_chain is not None:
+            ssl_context.load_verify_locations(self._cert_chain)
+        return ssl_context
+
+    def _load_macos_keychain_certs(self, ssl_context: ssl.SSLContext) -> int:
+        """
+        Adds trusted CA certificates from the macOS keychains to the context.
+
+        Since Python 3.13, ssl.enum_certificates was removed, so on macOS
+        ssl.create_default_context() may not see root certificates installed
+        in the keychain (neither System nor login). This method loads them
+        through the `security` command line tool so that internally issued
+        certificates (e.g. corporate CAs) are trusted again.
+
+        On non-macOS platforms this method does nothing: on Linux the system
+        CA bundle (/etc/ssl/certs/...) is used by default, and on Windows the
+        trust store is handled by the standard library.
+
+        :param ssl_context: SSL context to extend with keychain certificates
+        :return: the number of certificates added (0 if none or on failure)
+        """
+        if sys.platform != 'darwin':
+            return 0
+        try:
+            keychains = [
+                '/Library/Keychains/System.keychain',
+                os.path.expanduser('~/Library/Keychains/login.keychain-db'),
+            ]
+            pem_parts = []
+            for keychain in keychains:
+                if not os.path.exists(keychain):
+                    continue
+                proc = subprocess.run(
+                    ['security', 'find-certificate', '-a', '-p', keychain],
+                    capture_output=True, text=True, timeout=15,
+                )
+                if proc.returncode == 0 and proc.stdout.strip():
+                    pem_parts.append(proc.stdout)
+            if not pem_parts:
+                return 0
+            pem_data = '\n'.join(pem_parts)
+            ssl_context.load_verify_locations(cadata=pem_data)
+            return pem_data.count('-----BEGIN CERTIFICATE-----')
+        except Exception as exc:
+            self.logger.debug("Unable to load CA certificates from macOS keychain: %s", exc)
+            return 0
 
     async def register_callback(self, event_name: str, callback: Callable[[dict, 'TCPClient'], Coroutine]) -> None:
         await super().register_callback(event_name, callback)
@@ -167,9 +261,13 @@ class TCPClient(AMIClientBase):
             lines.append(decoded_line)
 
         self.running = False
-        self._fail_pending(ConnectionError('Connection closed'))
         if lines:
             await self._queues['messages'].put(lines)
+        # Sentinel: everything the server sent before closing is now queued.
+        # message_loop processes it first and only then fails pending requests,
+        # so a final response (e.g. "Response: Goodbye" before LogOff EOF)
+        # is not lost to a race with _fail_pending.
+        await self._queues['messages'].put(None)
 
     def _fail_pending(self, exc: Exception) -> None:
         """
@@ -233,12 +331,18 @@ class TCPClient(AMIClientBase):
         loop = asyncio.get_running_loop()
         self._loop_tasks.append(loop.create_task(self._receiving()))
 
-        while self.running:
+        # Drain the queue even after running turns False, so that everything
+        # received before the connection closed (including the None sentinel
+        # from _receiving) is processed in order before pending requests fail.
+        while self.running or not self._queues['messages'].empty():
             try:
                 data = await asyncio.wait_for(self._queues['messages'].get(), timeout=1)
             except asyncio.TimeoutError:
                 continue
             if data is None:
+                # All messages received before disconnect have been handled.
+                # Fail the requests that never got a response.
+                self._fail_pending(ConnectionError('Connection closed'))
                 break
 
             self.logger.debug("New message: %s", data)
